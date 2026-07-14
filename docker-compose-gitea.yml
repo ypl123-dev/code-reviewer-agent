@@ -1,0 +1,28 @@
+services:
+  gitea:
+    image: gitea/gitea:latest
+    container_name: code-reviewer-gitea
+    environment:
+      - USER_UID=1000
+      - USER_GID=1000
+      - GITEA__server__HTTP_PORT=3000
+      - GITEA__server__ROOT_URL=http://localhost:3000/
+      # 禁用安装页面（首次启动后可改）
+      - GITEA__security__INSTALL_LOCK=true
+    volumes:
+      - gitea_data:/data
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+    ports:
+      - "3000:3000"   # Web UI
+      - "2222:22"      # SSH
+    restart: unless-stopped
+    networks:
+      - reviewer-net
+
+volumes:
+  gitea_data:
+
+networks:
+  reviewer-net:
+    driver: bridge

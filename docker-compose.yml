@@ -1,0 +1,96 @@
+version: '3.8'
+
+services:
+  # PostgreSQL + pgvector
+  postgres:
+    image: pgvector/pgvector:pg15
+    container_name: code-reviewer-pg
+    environment:
+      POSTGRES_DB: code_reviewer
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 123456
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Redis - 对话记忆 + 限流
+  redis:
+    image: redis:7-alpine
+    container_name: code-reviewer-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # RabbitMQ - webhook 异步解耦
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: code-reviewer-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    ports:
+      - "5672:5672"
+      - "15672:15672"  # 管理界面
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # BGE-Reranker 重排序服务（本地 CPU 推理）
+  bge-reranker:
+    image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.5
+    container_name: code-reviewer-reranker
+    command: --model-id BAAI/bge-reranker-base --port 8080
+    ports:
+      - "9090:8080"
+    # 国内访问可能需要镜像，第一次启动会拉取模型
+
+  # Gitea - 轻量 Git 平台（用于本地测试）
+  gitea:
+    image: gitea/gitea:latest
+    container_name: code-reviewer-gitea
+    environment:
+      USER_UID: 1000
+      USER_GID: 1000
+    ports:
+      - "3000:3000"   # Web
+      - "2222:22"      # SSH
+    volumes:
+      - giteadata:/data
+    depends_on:
+      - postgres
+
+  # 主应用
+  app:
+    build: .
+    container_name: code-reviewer-app
+    environment:
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY}
+      GIT_TOKEN: ${GIT_TOKEN}
+      WEBHOOK_SECRET: ${WEBHOOK_SECRET:-code-reviewer-secret}
+      SPRING_PROFILES_ACTIVE: prod
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  giteadata:

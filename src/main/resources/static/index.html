@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>CodeReviewer 演示</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, "Segoe UI", sans-serif; background: #0d1117; color: #c9d1d9; padding: 24px; }
+        h1 { color: #58a6ff; margin-bottom: 16px; }
+        .container { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .panel { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 16px; }
+        .panel h2 { color: #58a6ff; font-size: 14px; margin-bottom: 12px; }
+        textarea, input { width: 100%; background: #0d1117; color: #c9d1d9; border: 1px solid #30363d; border-radius: 6px; padding: 10px; font-family: "JetBrains Mono", monospace; font-size: 13px; }
+        textarea { min-height: 360px; resize: vertical; }
+        button { background: #238636; color: white; border: none; border-radius: 6px; padding: 10px 20px; cursor: pointer; font-weight: 600; margin-top: 8px; }
+        button:hover { background: #2ea043; }
+        button:disabled { background: #21262d; color: #6e7681; cursor: not-allowed; }
+        pre { background: #0d1117; padding: 12px; border-radius: 6px; overflow: auto; white-space: pre-wrap; font-size: 13px; font-family: "JetBrains Mono", monospace; min-height: 320px; max-height: 480px; }
+        .status { font-size: 12px; color: #6e7681; margin-top: 8px; }
+        .hint { font-size: 11px; color: #6e7681; margin-top: 8px; }
+    </style>
+</head>
+<body>
+    <h1>CodeReviewer 智能代码审查 Agent</h1>
+    <div class="container">
+        <div class="panel">
+            <h2>代码 Diff（粘贴 unified diff）</h2>
+            <textarea id="code" placeholder="粘贴你的代码 diff，例如：
+
+diff --git a/UserService.java b/UserService.java
+public void save(String name) {
+    if (name == null) {
+        System.out.println(&quot;name is null&quot;);
+        return;
+    }
+    try {
+        db.save(name);
+    } catch (Exception e) {
+        e.printStackTrace();
+    }
+}"></textarea>
+            <button id="btn-review" onclick="reviewCode()">开始审查</button>
+            <button id="btn-chat" onclick="startChat()">启动对话</button>
+            <button onclick="loadExample()" style="background:#21262d;color:#c9d1d9;border:1px solid #30363d;">加载示例 diff</button>
+            <div class="status" id="status"></div>
+        </div>
+        <div class="panel">
+            <h2>审查结果（SSE 流式输出）</h2>
+            <pre id="output">等待审查...</pre>
+            <div class="hint">提示：使用 EventSource 接收 SSE 流，断线会自动重连</div>
+        </div>
+    </div>
+
+    <script>
+        const BASE = window.location.origin + '/code-reviewer';
+
+        // 从 SSE 原始文本块中解析出事件类型与 data 内容
+        function parseSseEvent(raw) {
+            let eventType = 'message';
+            let data = '';
+            for (const line of raw.split('\n')) {
+                if (line.startsWith('event:')) {
+                    eventType = line.substring(6).trim();
+                } else if (line.startsWith('data:')) {
+                    const payload = line.substring(5);
+                    data += (data ? '\n' : '') + (payload.startsWith(' ') ? payload.substring(1) : payload);
+                }
+            }
+            return { eventType, data };
+        }
+
+        function reviewCode() {
+            const code = document.getElementById('code').value;
+            if (!code.trim()) {
+                alert('请粘贴代码或 diff');
+                return;
+            }
+            const output = document.getElementById('output');
+            output.textContent = '';
+            document.getElementById('btn-review').disabled = true;
+            document.getElementById('status').textContent = '正在审查...';
+
+            const url = BASE + '/api/chat/review?sessionId=web-demo';
+            fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain' },
+                body: code
+            }).then(response => {
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+
+                function processBuffer() {
+                    // SSE 事件以空行（\n\n）分隔
+                    const parts = buffer.split('\n\n');
+                    buffer = parts.pop(); // 最后一段可能不完整，保留
+                    for (const part of parts) {
+                        if (!part.trim()) continue;
+                        const { eventType, data } = parseSseEvent(part);
+                        if (eventType === 'done') {
+                            document.getElementById('btn-review').disabled = false;
+                            document.getElementById('status').textContent = '审查完成';
+                            return true;
+                        }
+                        if (eventType === 'error') {
+                            output.textContent += '\n[错误] ' + data + '\n';
+                            continue;
+                        }
+                        if (eventType === 'start' || eventType === 'file') {
+                            output.textContent += '\n' + data + '\n';
+                        } else {
+                            output.textContent += data;
+                        }
+                        output.scrollTop = output.scrollHeight;
+                    }
+                    return false;
+                }
+
+                function read() {
+                    reader.read().then(({ done, value }) => {
+                        if (done) {
+                            processBuffer();
+                            document.getElementById('btn-review').disabled = false;
+                            if (document.getElementById('status').textContent === '正在审查...') {
+                                document.getElementById('status').textContent = '审查完成';
+                            }
+                            return;
+                        }
+                        buffer += decoder.decode(value, { stream: true });
+                        if (processBuffer()) return;
+                        read();
+                    });
+                }
+                read();
+            }).catch(err => {
+                output.textContent = '[错误] ' + err.message;
+                document.getElementById('btn-review').disabled = false;
+            });
+        }
+
+        function startChat() {
+            const sessionId = 'chat-' + Date.now();
+            const message = prompt('请输入你的追问：', '为什么这里建议不用 printStackTrace？');
+            if (!message) return;
+            const output = document.getElementById('output');
+            output.textContent = '用户: ' + message + '\n\n';
+            document.getElementById('status').textContent = '对话中...';
+
+            const url = BASE + '/api/chat/' + sessionId + '?message=' + encodeURIComponent(message);
+            const es = new EventSource(url);
+            es.addEventListener('message', (e) => {
+                output.textContent += e.data;
+                output.scrollTop = output.scrollHeight;
+            });
+            es.addEventListener('done', () => {
+                output.textContent += '\n\n[对话完成]';
+                es.close();
+                document.getElementById('status').textContent = '对话完成';
+            });
+            es.onerror = () => {
+                if (es.readyState === EventSource.CLOSED) {
+                    output.textContent += '\n\n[对话完成]';
+                    document.getElementById('status').textContent = '对话完成';
+                } else {
+                    output.textContent += '\n[连接中断，重连中...]';
+                }
+            };
+        }
+
+        // 一键加载示例 diff，方便测试
+        function loadExample() {
+            const example = `diff --git a/UserService.java b/UserService.java
+index 1a2b3c4..5d6e7f8 100644
+--- a/UserService.java
++++ b/UserService.java
+@@ -15,8 +15,25 @@ public class UserService {
+-    public User findUser(String id) {
+-        return userRepository.findById(id);
++    public User findUser(String id) {
++        if (id.equals("")) {
++            return null;
++        }
++        String sql = "SELECT * FROM users WHERE id = '" + id + "'";
++        Statement stmt = connection.createStatement();
++        ResultSet rs = stmt.executeQuery(sql);
++        if (rs.next()) {
++            User user = new User();
++            user.setId(rs.getString("id"));
++            return user;
++        }
++        return null;
++    }
++
++    public void deleteUser(String id) {
++        String sql = "DELETE FROM users WHERE id = " + id;
++        Statement stmt = connection.createStatement();
++        stmt.executeUpdate(sql);
+     }
+}`;
+            document.getElementById('code').value = example;
+        }
+    </script>
+</body>
+</html>

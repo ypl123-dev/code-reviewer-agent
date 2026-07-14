@@ -1,0 +1,44 @@
+server:
+  port: 9090
+  servlet:
+    context-path: /code-reviewer
+
+spring:
+  application:
+    name: code-reviewer
+  profiles:
+    active: dev  # 默认 dev 模式（零依赖运行），生产环境改 prod
+
+# 通用配置（profile 专属配置在 application-{profile}.yml）
+code-reviewer:
+  git:
+    platform: gitea
+    base-url: http://localhost:3000
+    token: ${GIT_TOKEN:dev-token}
+    webhook-secret: ${WEBHOOK_SECRET:code-reviewer-secret}
+  review:
+    max-token-per-chunk: 4000
+    context-lines: 10
+    max-files-per-review: 30
+  rag:
+    top-k: 3
+    candidate-count: 10
+    rerank-url: http://localhost:9090/rerank
+    enabled: false
+  ratelimit:
+    capacity: 10
+    rate: 2
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  metrics:
+    tags:
+      application: ${spring.application.name}
+
+logging:
+  level:
+    com.example: DEBUG
+    org.springframework.ai: INFO
