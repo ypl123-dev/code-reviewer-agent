@@ -8,7 +8,7 @@
 
 ```
 ┌────────────┐    webhook    ┌──────────────────┐
-│ Gitea/GitLab│──────────────▶│  Webhook 接收层  │
+│ Gitea       │──────────────▶│  Webhook 接收层  │
 └────────────┘               └────────┬─────────┘
                                       │ diff + 元数据
                                       ▼
@@ -58,7 +58,7 @@
 | 类别 | 技术 |
 |---|---|
 | JDK | 17 |
-| 框架 | Spring Boot 3.3.5 / Spring AI 1.0.0-M4 |
+| 框架 | Spring Boot 3.3.5 / Spring AI 1.0.0 GA |
 | LLM | DeepSeek (主) / 通义千问 (备) |
 | 向量库 | PostgreSQL 15 + pgvector |
 | 缓存 | Redis 7 (对话记忆 + 限流) |
@@ -67,7 +67,7 @@
 | Token 估算 | JTokkit (tiktoken Java 实现) |
 | 可观测性 | Micrometer + Prometheus |
 | 重排序 | BGE-Reranker-base (text-embeddings-inference) |
-| Git 平台 | Gitea / GitLab |
+| Git 平台 | Gitea |
 | 部署 | Docker Compose |
 
 ## 简历亮点（对应代码模块）
@@ -115,7 +115,7 @@ java -jar target/code-reviewer-1.0.0.jar
 
 ### 4. 访问演示界面
 
-打开浏览器访问：http://localhost:8080/code-reviewer/
+打开浏览器访问：http://localhost:9090/code-reviewer/
 
 - 粘贴代码 diff → 点击"开始审查"，可看到 SSE 流式输出
 - 或点击"启动对话"体验多轮对话追问
@@ -123,7 +123,7 @@ java -jar target/code-reviewer-1.0.0.jar
 ### 5. 通过 webhook 触发
 
 在 Gitea/GitLab 仓库设置中：
-- Webhook URL：`http://your-host:8080/code-reviewer/api/webhook/gitea`
+- Webhook URL：`http://your-host:9090/code-reviewer/api/webhook/gitea`
 - 触发事件：Pull request
 - 密钥：与 `.env` 中 `WEBHOOK_SECRET` 一致
 
@@ -209,7 +209,7 @@ src/main/
 
 > **CodeReviewer - 基于 SpringAI 的智能代码审查 Agent**（个人项目）
 >
-> - 设计并实现基于 Spring Boot 3.3 + Spring AI 1.0 的代码审查 Agent，在 GitLab/Gitea PR 创建时自动触发多维度审查，结构化建议自动回写评论
+> - 设计并实现基于 Spring Boot 3.3 + Spring AI 1.0 的代码审查 Agent，在 Gitea PR 创建时自动触发多维度审查，结构化建议自动回写评论
 > - 设计 Advisor 责任链（日志/工具追踪/记忆/RAG/敏感词/Token 限制 6 层），分离横切关注点；通过 @Tool 定义 4 个 Function Calling 工具（规范查询/历史 Issue 检索/项目配置/静态分析），LLM 自主决策调用
 > - 基于 pgvector + BGE-Reranker 构建团队规范知识库，实现向量检索 + 二次重排序两阶段 RAG 流程
 > - 设计 Diff 智能分块策略（按文件→hunk→滑动窗口切分，JTokkit 估算 token），单次审查 token 控制在 4K 内
