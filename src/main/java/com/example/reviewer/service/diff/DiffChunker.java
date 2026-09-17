@@ -21,9 +21,9 @@ import java.util.regex.Pattern;
  * 3. 第三级 - 滑动窗口（hunk 仍超长则切分）
  * 4. 上下文增强 - 附带文件路径 + 函数名 + 上下文 ±N 行
  *
- * 关键技术点（面试）：
+ * 实现说明：
  * - Token 估算使用 JTokkit (tiktoken Java 实现)
- * - 单次审查 token 控制在 maxTokenPerChunk 以内
+ * - 单块 token 数由 maxTokenPerChunk 控制，超出则降级到滑动窗口
  * - 上下文行数从配置读取
  */
 @Slf4j

@@ -1,6 +1,6 @@
 # CodeReviewer - 基于 SpringAI 的智能代码审查 Agent
 
-> 个人学习/求职项目，使用 Spring Boot 3 + Spring AI 1.0 构建的多维度代码审查 Agent，
+> 基于 Spring Boot 3 + Spring AI 1.0 构建的多维度代码审查 Agent，
 > 在 Git 仓库产生 PR/MR 时自动触发，结合团队规范知识库与历史 Issue，
 > 调用 LLM 完成结构化代码审查并回写到 PR 评论。
 
@@ -70,9 +70,9 @@
 | Git 平台 | Gitea |
 | 部署 | Docker Compose |
 
-## 简历亮点（对应代码模块）
+## 核心模块说明
 
-| 亮点 | 模块 | 文件 |
+| 模块 | 实现位置 | 说明 |
 |---|---|---|
 | SSE 流式输出 + 会话隔离 | ChatController | `controller/ChatController.java` |
 | Advisor 责任链 (6 层) | ChatClientConfig + advisor/ | `config/ChatClientConfig.java` |
@@ -255,4 +255,4 @@ src/main/
 
 ## License
 
-MIT - 个人学习项目，可自由使用
+MIT

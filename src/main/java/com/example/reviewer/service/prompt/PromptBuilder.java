@@ -12,8 +12,8 @@ import java.util.Map;
 /**
  * Prompt 模板构建器
  *
- * 使用模板文件 + 变量替换的方式构造 Prompt
- * 简历亮点：Prompt 工程化，避免硬编码
+ * 使用模板文件 + 变量替换的方式构造 Prompt，
+ * 模板存放在 resources/prompts/ 下，修改 Prompt 无需改动代码。
  */
 @Service
 public class PromptBuilder {

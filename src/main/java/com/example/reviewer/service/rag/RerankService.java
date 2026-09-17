@@ -20,9 +20,10 @@ import java.util.stream.Collectors;
  *
  * 部署：通过 text-embeddings-inference Docker 镜像
  *
- * 简历亮点：
- * - 向量检索 + 重排序两阶段架构
- * - 相比纯向量检索 Recall@3 提升 ~30%
+ * 设计说明：
+ * - 采用「向量召回 + 重排序」两阶段检索架构
+ *   第一阶段用向量相似度快速筛出候选集，第二阶段用交叉编码器精排
+ * - 服务不可用时降级为直接返回向量检索结果，不阻断主流程
  */
 @Slf4j
 @Service

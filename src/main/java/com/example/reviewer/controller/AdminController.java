@@ -78,7 +78,9 @@ public class AdminController {
     }
 
     /**
-     * 查询工具调用日志（面试展示用）
+     * 查询工具调用日志
+     *
+     * 支持按审查记录 ID 过滤，不传则返回全部。
      */
     @GetMapping("/tool-calls")
     public ResponseEntity<List<?>> listToolCalls(@RequestParam(required = false) Long reviewId) {

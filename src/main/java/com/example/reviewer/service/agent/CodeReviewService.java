@@ -33,10 +33,10 @@ import java.util.List;
  * 4. 对每个 chunk 调用 ChatClient（流式）
  * 5. 汇总结果，回写到 PR 评论
  *
- * 简历亮点：
- * - Advisor 链 + Function Calling + RAG 一体化
- * - Observation 监控 + 自定义指标
- * - 限流保护 LLM 调用
+ * 关键设计：
+ * - Advisor 链 + Function Calling + RAG 串联为完整审查链路
+ * - 通过 Micrometer Observation 采集耗时指标，便于观察 P99
+ * - LLM 调用前经过令牌桶限流，防止上游配额被打满
  */
 @Slf4j
 @Service

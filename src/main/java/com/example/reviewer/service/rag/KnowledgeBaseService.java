@@ -31,13 +31,13 @@ import java.util.stream.Collectors;
  * 1. 团队规范文档的导入、切分、向量化
  * 2. 向量检索 + 重排序的 RAG 流程
  *
- * 关键技术点（面试）：
+ * 实现说明：
  * - 文档切分：自实现 TextSplitter (512 token / 100 overlap)
  * - 向量化：调用 SpringAI Embedding 模型
  * - 检索：向量相似度 Top N
  * - 重排：BGE-Reranker 二次排序
  *
- * 设计点：VectorStore 通过 ObjectProvider 注入，
+ * VectorStore 通过 ObjectProvider 注入，
  * dev 模式（无 PgVector）下检索方法降级返回空。
  */
 @Slf4j

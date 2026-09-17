@@ -23,10 +23,11 @@ import java.util.stream.Collectors;
  * 3. queryProjectConfig       - 查询项目配置信息
  * 4. runStaticAnalysis        - 运行静态分析规则
  *
- * 简历亮点：
- * - @Tool 注解让 LLM 自动决策调用
- * - 工具描述清晰，LLM 可正确选择
- * - 工具返回结构化数据，便于 LLM 理解
+ * 设计说明：
+ * - 用 @Tool 暴露能力，由 LLM 根据 description 自主决定是否调用
+ * - 工具返回结构化文本，降低 LLM 解析成本
+ * - 注意：runStaticAnalysis 目前为演示用的简化规则匹配，
+ *   生产环境应接入 Checkstyle / SpotBugs 等真实分析器
  */
 @Slf4j
 @Component

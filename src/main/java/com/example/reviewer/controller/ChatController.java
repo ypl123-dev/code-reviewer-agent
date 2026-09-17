@@ -16,9 +16,9 @@ import java.util.UUID;
 /**
  * SSE 流式接口
  *
- * 简历亮点：
- * - SSE 流式输出（面试重点：背压、断线重连、Token 边界）
- * - 多轮对话支持（ChatMemory 通过 sessionId 隔离）
+ * 实现要点：
+ * - 使用 Flux + ServerSentEvent 做流式输出，需处理背压、断线重连与 Token 边界
+ * - 多轮对话通过 sessionId 隔离 ChatMemory 上下文
  */
 @Slf4j
 @RestController

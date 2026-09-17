@@ -5,7 +5,10 @@ import lombok.Data;
 import java.time.LocalDateTime;
 
 /**
- * 工具调用日志（面试展示亮点）
+ * 工具调用日志
+ *
+ * 记录 LLM 每次 Function Calling 的工具名、入参、出参与耗时，
+ * 用于回溯审查决策过程。
  */
 @Data
 @Entity

@@ -59,7 +59,8 @@ CREATE TABLE IF NOT EXISTS project_config (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- 工具调用记录表（用于面试展示）
+-- 工具调用记录表
+-- 记录 LLM 每次 Function Calling 的工具名、入参、出参与耗时，用于回溯审查决策过程
 CREATE TABLE IF NOT EXISTS tool_call_log (
     id BIGSERIAL PRIMARY KEY,
     review_id BIGINT REFERENCES code_review_record(id),

@@ -20,9 +20,9 @@ import java.util.Map;
  *
  * 职责：追踪 LLM 自主调用的 Function Calling 工具，记录到数据库
  *
- * 简历亮点：
- * - 通过 Advisor 模式无侵入地采集工具调用链
- * - 在面试中可以展示"LLM 决策链路"可视化能力
+ * 设计说明：
+ * - 通过 Advisor 模式无侵入地采集工具调用链，业务代码无需感知
+ * - 落库后可支撑"LLM 决策链路"的可视化与问题回溯
  */
 @Slf4j
 @RequiredArgsConstructor

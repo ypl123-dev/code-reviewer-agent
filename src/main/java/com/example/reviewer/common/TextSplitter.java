@@ -19,9 +19,9 @@ import java.util.List;
  * 2. 累积到目标大小后形成 chunk
  * 3. chunk 之间保留 overlap 行，避免上下文割裂
  *
- * 简历亮点：
- * - 自实现切分器，理解 RAG 文档处理原理
- * - 使用 JTokkit 进行精确 token 估算
+ * 说明：自行实现而非依赖 SpringAI 的 TokenTextSplitter，
+ * 是为了避免其在不同版本间包路径变更带来的兼容问题，
+ * 同时便于按业务需要调整切分粒度与 overlap 策略。
  */
 @Component
 @RequiredArgsConstructor

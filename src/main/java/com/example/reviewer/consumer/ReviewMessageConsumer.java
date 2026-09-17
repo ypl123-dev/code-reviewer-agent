@@ -11,9 +11,9 @@ import org.springframework.stereotype.Component;
 /**
  * RabbitMQ 消费者 - 异步处理 webhook 事件
  *
- * 简历亮点：
- * - 异步化解耦 webhook 与 LLM 调用
- * - 失败自动重试
+ * 设计说明：
+ * - 异步化解耦 webhook 接收与 LLM 调用，避免 webhook 响应超时
+ * - 消费失败进入重试，超过阈值后落盘待人工处理
  *
  * dev 模式下不装配（无 AMQP 自动配置）
  */
