@@ -214,8 +214,8 @@ src/main/
 - Diff 分块、令牌桶限流等纯逻辑模块有单元测试（`src/test`），可执行 `mvn test` 验证。
 - GitHub Actions 在 push / PR 时自动构建。
 
+## SpringAI 核心概念对应
 
-### SpringAI 核心概念对应
 | SpringAI 概念 | 本项目位置 | 作用 |
 |---|---|---|
 | ChatClient | ChatClientConfig | LLM 调用入口 |
@@ -227,7 +227,7 @@ src/main/
 | PromptTemplate | prompts/ + PromptBuilder | Prompt 工程化 |
 | Observation | CodeReviewService | 调用链追踪 |
 
-### 延伸阅读主题
+## 延伸阅读主题
 
 1. **SSE 流式输出原理**：背压、Token 边界、心跳保活、断线重连
 2. **Advisor 责任链**：order 顺序、对同步/流式两种调用的处理
