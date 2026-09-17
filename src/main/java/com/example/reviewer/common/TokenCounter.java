@@ -27,7 +27,11 @@ public class TokenCounter {
     }
 
     /**
-     * 将文本截断到指定 token 数以内（保留尾部，模拟截断历史）
+     * 将文本截断到指定 token 数以内
+     *
+     * 注意：JTokkit 的 encode(text, maxTokens) 取的是文本【前段】的 maxTokens 个 token，
+     * 即保留头部、丢弃尾部。对代码审查场景，丢弃尾部意味着后半段代码不被审查，
+     * 因此调用方应优先依赖 DiffChunker 的分块保证不超限，截断仅作为最后兜底。
      */
     public String truncate(String text, int maxTokens) {
         if (text == null) return "";

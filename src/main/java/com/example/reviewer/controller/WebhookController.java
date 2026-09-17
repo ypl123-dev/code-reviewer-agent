@@ -35,19 +35,6 @@ public class WebhookController {
     private final ObjectProvider<DiffChunker> diffChunkerProvider;
     private final ReviewerProperties properties;
 
-    /**
-     * GitLab Webhook 入口
-     */
-    @PostMapping("/gitlab")
-    public ResponseEntity<String> gitlabWebhook(
-            @RequestHeader(value = "X-Gitlab-Token", required = false) String token,
-            @RequestBody String body) {
-        if (!properties.getGit().getWebhookSecret().equals(token)) {
-            log.warn("GitLab webhook 签名校验失败");
-            return ResponseEntity.status(401).body("Unauthorized");
-        }
-        return handleEvent(body, "gitlab");
-    }
 
     /**
      * Gitea Webhook 入口

@@ -1,0 +1,94 @@
+diff --git a/src/main/java/com/example/user/controller/UserController.java b/src/main/java/com/example/user/controller/UserController.java
+index 1a2b3c4..5d6e7f8 100644
+--- a/src/main/java/com/example/user/controller/UserController.java
++++ b/src/main/java/com/example/user/controller/UserController.java
+@@ -15,6 +15,22 @@ public class UserController {
+     @Autowired
+     private UserService userService;
+ 
++    @GetMapping("/searchByName")
++    public ResponseEntity<List<User>> searchByName(@RequestParam String name) {
++        String sql = "SELECT * FROM users WHERE name = '" + name + "'";
++        List<User> users = jdbcTemplate.queryForList(sql, User.class);
++        return ResponseEntity.ok(users);
++    }
++
++    @GetMapping("/user/{id}")
++    public ResponseEntity<User> getUser(@PathVariable Long id) {
++        User user = userService.findById(id);
++        String displayName = user.getName().toUpperCase();
++        return ResponseEntity.ok(displayName);
++    }
++
+     @PostMapping("/save")
+     public ResponseEntity save(@RequestBody User user) {
+         userService.save(user);
+diff --git a/src/main/java/com/example/user/service/UserService.java b/src/main/java/com/example/user/service/UserService.java
+index 2b3c4d5..6e7f8a9 100644
+--- a/src/main/java/com/example/user/service/UserService.java
++++ b/src/main/java/com/example/user/service/UserService.java
+@@ -20,6 +20,28 @@ public class UserService {
+     @Autowired
+     private JdbcTemplate jdbcTemplate;
+ 
++    public User findById(Long id) {
++        return jdbcTemplate.queryForObject(
++            "SELECT * FROM users WHERE id = " + id,
++            (rs, rowNum) -> mapUser(rs)
++        );
++    }
++
++    public void exportUsers(HttpServletResponse response) throws IOException {
++        Connection conn = dataSource.getConnection();
++        Statement stmt = conn.createStatement();
++        ResultSet rs = stmt.executeQuery("SELECT * FROM users");
++        PrintWriter writer = response.getWriter();
++        while (rs.next()) {
++            writer.println(rs.getString("name") + "," + rs.getString("email"));
++        }
++    }
++
++    public void batchInsert(List<User> users) {
++        for (User u : users) {
++            jdbcTemplate.update("INSERT INTO users(name,email) VALUES('" + u.getName() + "','" + u.getEmail() + "')");
++        }
++    }
++
+     public void save(User user) {
+         jdbcTemplate.update("INSERT INTO users(name) VALUES(?)", user.getName());
+     }
+diff --git a/src/main/java/com/example/order/OrderService.java b/src/main/java/com/example/order/OrderService.java
+index 3c4d5e6..7f8a9b0 100644
+--- a/src/main/java/com/example/order/OrderService.java
++++ b/src/main/java/com/example/order/OrderService.java
+@@ -10,6 +10,30 @@ public class OrderService {
+     @Autowired
+     private OrderRepository orderRepository;
+ 
++    @Transactional
++    public void createOrder(OrderRequest req) {
++        Order order = new Order();
++        order.setUserId(req.getUserId());
++        order.setAmount(req.getAmount());
++        order.setStatus("CREATED");
++        orderRepository.save(order);
++
++        try {
++            accountService.deduct(req.getUserId(), req.getAmount());
++        } catch (Exception e) {
++            e.printStackTrace();
++        }
++        inventoryService.lock(req.getProductId());
++        order.setStatus("PAID");
++        orderRepository.save(order);
++    }
++
++    public Order getOrder(Long id) {
++        Order o = orderRepository.findById(id).orElse(null);
++        String info = o.getProductName() + " | " + o.getUser().getName();
++        return o;
++    }
++
+     public void cancelOrder(Long id) {
+         orderRepository.findById(id).ifPresent(o -> {
+             o.setStatus("CANCELLED");

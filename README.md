@@ -21,14 +21,14 @@
 │                                                            │
 │  1. 拉取 diff (GitIntegrationService)                      │
 │  2. DiffChunker 切分 (按文件→hunk→滑动窗口)               │
-│  3. ChatClient + Advisor 链 (6 层责任链)                  │
+│  3. ChatClient + Advisor 链 (6 层：自研 3 + 内置 3)       │
 │     ┌──────────────────────────────────────────────┐       │
-│     │ SimpleLoggerAdvisor   (基础日志)             │       │
-│     │ ToolCallLogAdvisor    (工具调用追踪)         │       │
-│     │ MessageChatMemoryAdvisor (对话历史注入)      │       │
-│     │ QuestionAnswerAdvisor (RAG 检索)             │       │
-│     │ SensitivityFilterAdvisor (敏感词过滤)        │       │
-│     │ TokenLimitAdvisor     (token 截断)           │       │
+│     │ SimpleLoggerAdvisor      内置 · 基础日志           │       │
+│     │ ToolCallLogAdvisor       自研 · 工具调用追踪       │       │
+│     │ MessageChatMemoryAdvisor 内置 · 对话历史注入       │       │
+│     │ QuestionAnswerAdvisor    内置 · RAG 检索           │       │
+│     │ SensitivityFilterAdvisor 自研 · 敏感词过滤         │       │
+│     │ TokenLimitAdvisor        自研 · token 截断         │       │
 │     └──────────────────────────────────────────────┘       │
 │  4. Function Calling (4 个工具，LLM 自主决策)              │
 │  5. SSE 流式输出                                          │
@@ -182,7 +182,38 @@ src/main/
 │   └── static/              # 演示页面
 ```
 
-## 学习要点
+## 关键设计说明
+
+### Advisor 责任链
+
+链上共 6 层，其中自研 3 层、SpringAI 内置 3 层：
+
+| 顺序 | Advisor | 来源 | 职责 |
+|---|---|---|---|
+| 1 | SimpleLoggerAdvisor | 内置 | 请求/响应基础日志 |
+| 2 | ToolCallLogAdvisor | 自研 | 工具调用追踪并落库 |
+| 3 | MessageChatMemoryAdvisor | 内置 | 注入对话历史（滑窗 maxMessages=20） |
+| 4 | QuestionAnswerAdvisor | 内置 | RAG 检索规范片段，隐式注入上下文 |
+| 5 | SensitivityFilterAdvisor | 自研 | 过滤 API Key / 密码 / 手机号 / 身份证 |
+| 6 | TokenLimitAdvisor | 自研 | 估算 token 并截断超限输入 |
+
+**顺序设计考虑**：敏感词过滤（5）必须先于 token 截断（6），
+否则密钥字符串可能被截断成碎片，正则失配后泄漏给模型。
+
+> `QuestionAnswerAdvisor` 依赖 `VectorStore`，dev 模式下无 PgVector 时自动跳过（见 `ChatClientConfig`）。
+
+### RAG 与 Function Calling 的分工
+
+两者都能拿规范，因此明确划清边界避免 LLM 决策摇摆：
+
+- **RAG（QuestionAnswerAdvisor）**：隐式注入。每次调用自动附带 Top-K 相关规范，覆盖高频通用场景，无需 LLM 决策。
+- **@Tool 工具（CodeReviewTools）**：显式检索。LLM 判断上下文不足时主动多次查询，用于精确检索与历史 Issue 关联。
+
+### 质量保障
+
+- Diff 分块、令牌桶限流等纯逻辑模块有单元测试（`src/test`），可执行 `mvn test` 验证。
+- GitHub Actions 在 push / PR 时自动构建。
+
 
 ### SpringAI 核心概念对应
 | SpringAI 概念 | 本项目位置 | 作用 |
@@ -196,7 +227,8 @@ src/main/
 | PromptTemplate | prompts/ + PromptBuilder | Prompt 工程化 |
 | Observation | CodeReviewService | 调用链追踪 |
 
-### 面试可能深挖的点
+### 延伸阅读主题
+
 1. **SSE 流式输出原理**：背压、Token 边界、心跳保活、断线重连
 2. **Advisor 责任链**：order 顺序、对同步/流式两种调用的处理
 3. **Function Calling 原理**：LLM 如何决策调用工具？JSON Schema 是怎么生成的？
@@ -204,18 +236,6 @@ src/main/
 5. **令牌桶算法**：与漏桶区别、Lua 脚本原子性
 6. **Diff 切分策略**：为什么要切？切多细？Token 怎么估？
 7. **多轮对话上下文管理**：滑动窗口、Token 超限怎么处理
-
-## 简历描述参考
-
-> **CodeReviewer - 基于 SpringAI 的智能代码审查 Agent**（个人项目）
->
-> - 设计并实现基于 Spring Boot 3.3 + Spring AI 1.0 的代码审查 Agent，在 Gitea PR 创建时自动触发多维度审查，结构化建议自动回写评论
-> - 设计 Advisor 责任链（日志/工具追踪/记忆/RAG/敏感词/Token 限制 6 层），分离横切关注点；通过 @Tool 定义 4 个 Function Calling 工具（规范查询/历史 Issue 检索/项目配置/静态分析），LLM 自主决策调用
-> - 基于 pgvector + BGE-Reranker 构建团队规范知识库，实现向量检索 + 二次重排序两阶段 RAG 流程
-> - 设计 Diff 智能分块策略（按文件→hunk→滑动窗口切分，JTokkit 估算 token），单次审查 token 控制在 4K 内
-> - SSE 流式输出 + Redis ChatMemory 实现多轮对话追问，令牌桶限流（Lua 脚本）保障并发稳定性
-> - SpringAI Observation + Micrometer 接入，监控 token 消耗、调用链、P99 延迟
-> - 通过 SpringAI 抽象层实现 DeepSeek/通义千问 多模型切换与降级
 
 ## 开发路线图
 

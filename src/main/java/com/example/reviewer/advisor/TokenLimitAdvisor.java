@@ -5,6 +5,7 @@ import org.springframework.ai.chat.client.ChatClientRequest;
 import org.springframework.ai.chat.client.ChatClientResponse;
 import org.springframework.ai.chat.client.advisor.api.AdvisorChain;
 import org.springframework.ai.chat.client.advisor.api.BaseAdvisor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.core.Ordered;
 
@@ -18,6 +19,7 @@ import org.springframework.core.Ordered;
  * - 多轮对话历史累积可能超出限制
  * - 在 Advisor 链中前置处理，避免调用失败
  */
+@Slf4j
 public class TokenLimitAdvisor implements BaseAdvisor {
 
     private final int maxTokens;
@@ -35,7 +37,8 @@ public class TokenLimitAdvisor implements BaseAdvisor {
 
     @Override
     public int getOrder() {
-        // 在 QuestionAnswerAdvisor 之后执行
+        // 必须在 SensitivityFilterAdvisor(200) 之后：
+        // 先过滤敏感词，再判断 token 是否超限，避免密钥被截断成碎片后正则失配
         return 300;
     }
 
@@ -54,10 +57,13 @@ public class TokenLimitAdvisor implements BaseAdvisor {
             return request;
         }
 
-        // 截断用户输入：保留头部，预留 20% 给响应
+        // 截断用户输入：保留头部，预留 20% 给响应。
+        // 注意：正常链路下 DiffChunker 已保证单 chunk 不超 maxTokens，
+        // 走到这里说明上游分块未覆盖（如多轮对话历史累积），截断仅作兜底。
         int allowed = (int) (maxTokens * 0.8);
         String truncated = tokenCounter.truncate(userText, allowed)
                 + "\n\n[注意：因 token 限制，输入已截断]";
+        log.warn("输入超限触发截断: {} tokens -> {}", userTokens, allowed);
 
         // 用 augmentUserMessage 构造新 Prompt，保留其他消息（系统/历史）
         Prompt newPrompt = prompt.augmentUserMessage(truncated);

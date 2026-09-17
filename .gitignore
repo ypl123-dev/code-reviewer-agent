@@ -5,3 +5,10 @@ target/
 .env
 .DS_Store
 logs/
+
+# 本地个人文件（不纳入版本控制）
+resume-extracted.txt
+简历优化版-*.txt
+Agent项目面试讲解词-*.txt
+test-result-*.txt
+*.local

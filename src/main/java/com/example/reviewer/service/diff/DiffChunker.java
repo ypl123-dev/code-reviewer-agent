@@ -157,28 +157,57 @@ public class DiffChunker {
 
     /**
      * 滑动窗口切分 - 处理超长 hunk
+     *
+     * 切分规则：累积到当前行之前先判断「加入本行后是否会超限」，
+     * 若会超限则先把已有内容作为一个 chunk 落盘，本行作为新块起点。
+     *
+     * 注意：早期实现在 append 之后再判断 >= maxTokens，会让单块最多超出
+     * 一整行的 token 数（实测可出现 4005 > 4000），无法保证「单块不超过上限」的承诺。
      */
     private List<DiffChunk> slidingWindow(String file, String funcName, String language,
                                             String content, int maxTokens) {
         List<DiffChunk> result = new ArrayList<>();
         String[] lines = content.split("\n");
         StringBuilder buffer = new StringBuilder();
+        int bufferTokens = 0;
 
         for (String line : lines) {
-            buffer.append(line).append('\n');
-            if (tokenCounter.count(buffer.toString()) >= maxTokens) {
-                result.add(new DiffChunk(file, funcName, language,
-                        "", buffer.toString(), "",
-                        tokenCounter.count(buffer.toString())));
+            String candidate = line + "\n";
+            int candidateTokens = tokenCounter.count(candidate);
+
+            // 单行本身就超限：独立成块，避免死循环与无限增长
+            if (candidateTokens >= maxTokens) {
+                flush(result, file, funcName, language, buffer);
                 buffer.setLength(0);
+                bufferTokens = 0;
+                result.add(new DiffChunk(file, funcName, language, "", candidate, "", candidateTokens));
+                continue;
             }
+
+            // 加入本行会超限 -> 先落盘当前块
+            if (bufferTokens + candidateTokens > maxTokens) {
+                flush(result, file, funcName, language, buffer);
+                buffer.setLength(0);
+                bufferTokens = 0;
+            }
+
+            buffer.append(candidate);
+            bufferTokens += candidateTokens;
         }
-        if (!buffer.isEmpty()) {
-            result.add(new DiffChunk(file, funcName, language,
-                    "", buffer.toString(), "",
-                    tokenCounter.count(buffer.toString())));
-        }
+
+        flush(result, file, funcName, language, buffer);
         return result;
+    }
+
+    /** 将缓冲区内容作为一个 chunk 落盘（空缓冲则跳过） */
+    private void flush(List<DiffChunk> result, String file, String funcName,
+                       String language, StringBuilder buffer) {
+        if (buffer.isEmpty()) {
+            return;
+        }
+        String text = buffer.toString();
+        result.add(new DiffChunk(file, funcName, language, "", text, "",
+                tokenCounter.count(text)));
     }
 
     private String detectLanguage(String filePath) {
